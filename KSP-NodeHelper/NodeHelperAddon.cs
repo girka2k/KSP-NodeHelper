@@ -18,7 +18,6 @@ namespace NodeHelper
         private const byte Transparency = 150;
         private const string TransShader = "Transparent/Diffuse";
         private const bool PrintAdvancedConfig = false;
-        private static string FormatString = "{0:F7}";
         private readonly Color _nodeColor = Utilities.GetColorFromRgb(36, 112, 29, Transparency);
         private readonly Color _planeColor = Utilities.GetColorFromRgb(36, 112, 29, Transparency - 25);
         private readonly Color _selectedNodeColor = Utilities.GetColorFromRgb(38, 233, 18, Transparency);
@@ -67,6 +66,12 @@ namespace NodeHelper
                 }
                 this._selectedPart = data;
             }
+        }
+
+        public void OnDestroy()
+        {
+            GameEvents.onPartActionUIDismiss.Remove(this.HandleActionMenuClosed);
+            GameEvents.onPartActionUICreate.Remove(this.HandleActionMenuOpened);
         }
 
         public void OnGUI()
@@ -125,12 +130,6 @@ namespace NodeHelper
             this._nodeHelperButton.ToolTip = "NodeHelper";
             this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR);
             this._nodeHelperButton.OnClick += e => this._show = !this._show;
-        }
-
-        public void OnDestroy()
-        {
-            GameEvents.onPartActionUIDismiss.Remove(this.HandleActionMenuClosed);
-            GameEvents.onPartActionUICreate.Remove(this.HandleActionMenuOpened);
         }
 
         public void Update()
@@ -265,12 +264,15 @@ namespace NodeHelper
                     this._moveNode(MoveDirs.Z, false);
                 }
                 GUILayout.EndHorizontal();
-                var cPos = this._selectedNode.position;
-                var posText = string.Format("Current Pos = ({0:F5},{1:F5},{2:F5})", cPos.x, cPos.y, cPos.z);
                 GUILayout.Space(spacing);
+                GUILayout.BeginVertical();
+                var cPos = this._selectedNode.position;
+                var posText = string.Format("({0:F5},{1:F5},{2:F5})", cPos.x, cPos.y, cPos.z);
+                GUILayout.Label("Current Position:", expandWidth);
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(posText, expandWidth);
                 GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
                 GUILayout.Space(spacing);
                 GUILayout.BeginHorizontal();
                 this._targetPos = GUILayout.TextField(this._targetPos, textFieldWidth);
@@ -351,6 +353,7 @@ namespace NodeHelper
             GUILayout.Label("Plane radius:");
             GUILayout.BeginHorizontal();
             this._planeRadiusString = GUILayout.TextField(this._planeRadiusString, textFieldWidth);
+            GUILayout.Space(spacing);
             if (GUILayout.Button("Set"))
             {
                 this._parsePlaneRadius();
@@ -478,6 +481,30 @@ namespace NodeHelper
             return newNodeName + sameNameCount;
         }
 
+        /// <summary>
+        ///     Finds the precision of a float up to approx. 5 digits which is fine for this context.
+        /// </summary>
+        /// <param name="inNr"></param>
+        /// <returns>position of last signif. position after 0</returns>
+        private static int _floatPrecision(float inNr)
+        {
+            inNr = Mathf.Abs(inNr);
+            var cnt = 0;
+            while (inNr%1 > 0)
+            {
+                cnt++;
+                inNr *= 10;
+            }
+            return cnt;
+        }
+
+        private static string _formatNumberForOutput(float inputNumber)
+        {
+            var precision = Mathf.Clamp(_floatPrecision(inputNumber), 1, 5);
+            var formatString = "{0:F" + precision + "}";
+            return string.Format(formatString, inputNumber);
+        }
+
         private string _getNodeName(AttachNode node)
         {
             if (this._nodeNameMapping.ContainsKey(node))
@@ -541,17 +568,17 @@ namespace NodeHelper
             var sb = new StringBuilder();
             var pos = node.position;
             var or = node.orientation;
-            sb.AppendFormat(FormatString, pos.x);
+            sb.Append(_formatNumberForOutput(pos.x));
             sb.Append(delim);
-            sb.AppendFormat(FormatString, pos.y);
+            sb.Append(_formatNumberForOutput(pos.y));
             sb.Append(delim);
-            sb.AppendFormat(FormatString, pos.z);
+            sb.Append(_formatNumberForOutput(pos.z));
             sb.Append(delim);
-            sb.AppendFormat(FormatString, or.x);
+            sb.Append(_formatNumberForOutput(or.x));
             sb.Append(delim);
-            sb.AppendFormat(FormatString, or.y);
+            sb.Append(_formatNumberForOutput(or.y));
             sb.Append(delim);
-            sb.AppendFormat(FormatString, or.z);
+            sb.Append(_formatNumberForOutput(or.z));
             if (node.size != 0)
             {
                 sb.Append(delim);
@@ -619,8 +646,8 @@ namespace NodeHelper
                         {
                             text.Append(nodeAttribute.Item1);
                             text.Append(" = ");
-                            text.AppendFormat(FormatString, nodeAttribute.Item2);
-                            text.Append("\n\r");
+                            text.Append(nodeAttribute.Item2);
+                            text.Append(Environment.NewLine);
                         }
                         File.WriteAllText(path, text.ToString());
                     }
