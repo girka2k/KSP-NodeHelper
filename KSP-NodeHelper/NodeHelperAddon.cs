@@ -127,6 +127,12 @@ namespace NodeHelper
             this._nodeHelperButton.OnClick += e => this._show = !this._show;
         }
 
+        public void OnDestroy()
+        {
+            GameEvents.onPartActionUIDismiss.Remove(this.HandleActionMenuClosed);
+            GameEvents.onPartActionUICreate.Remove(this.HandleActionMenuOpened);
+        }
+
         public void Update()
         {
             var el = EditorLogic.fetch;
