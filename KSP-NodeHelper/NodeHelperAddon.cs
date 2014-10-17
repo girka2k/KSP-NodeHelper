@@ -602,7 +602,7 @@ namespace NodeHelper
                 pr = Mathf.Abs(pr);
             }
             this._planeRadius = pr;
-            this._stepWidthString = pr.ToString(CultureInfo.InvariantCulture);
+            this._planeRadiusString = pr.ToString(CultureInfo.InvariantCulture);
         }
 
         private void _parseStepWidth()
