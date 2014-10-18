@@ -694,7 +694,7 @@ namespace NodeHelper
             sb.Append(_formatNumberForOutput(or.y));
             sb.Append(delim);
             sb.Append(_formatNumberForOutput(or.z));
-            if (node.size > 0)
+            if (node.size >= 0)
             {
                 sb.Append(delim);
                 sb.Append(node.size);
@@ -779,6 +779,13 @@ namespace NodeHelper
                             text.Append(nodeAttribute.Item1);
                             text.Append(" = ");
                             text.Append(nodeAttribute.Item2);
+                            text.Append(Environment.NewLine);
+                        }
+                        if (_selectedPart != null)
+                        {
+                            text.Append(Environment.NewLine);
+                            text.Append("attachRules = ");
+                            text.Append(this._getSelPartAttRulesString());
                             text.Append(Environment.NewLine);
                         }
                         File.WriteAllText(path, text.ToString());
