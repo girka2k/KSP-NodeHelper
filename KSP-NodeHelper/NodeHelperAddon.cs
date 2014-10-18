@@ -32,6 +32,7 @@ namespace NodeHelper
         private Dictionary<AttachNode, GameObject> _nodeMapping;
         private Material _nodeMaterial;
         private Dictionary<AttachNode, string> _nodeNameMapping;
+        private string _nodeOrientationCust = ZeroVector;
         private Dictionary<AttachNode, Vector3> _nodePosBackup;
         private float _planeRadius = 0.625f;
         private string _planeRadiusString = "0.625";
@@ -39,6 +40,7 @@ namespace NodeHelper
         private bool _printingActive;
         private AttachNode _selectedNode;
         private Part _selectedPart;
+        private bool[] _selectedPartRules;
         private bool _show;
         private bool _showCreateMenu;
         private bool[] _showPlanes;
@@ -46,6 +48,11 @@ namespace NodeHelper
         private string _stepWidthString = "0.1";
         private string _targetPos = ZeroVector;
         private Rect _windowPos = new Rect(400, 100, 160, 40);
+
+        private static Vector3 GetGoScaleForNode(AttachNode attachNode)
+        {
+            return ((Vector3.one*attachNode.radius)*(attachNode.size != 0 ? attachNode.size : 0.5f));
+        }
 
         private void HandleActionMenuClosed(Part data)
         {
@@ -114,6 +121,7 @@ namespace NodeHelper
             this._nodeNameMapping = new Dictionary<AttachNode, string>();
             this._nodePosBackup = new Dictionary<AttachNode, Vector3>();
             this._affectedParts = new HashSet<Part>();
+            this._selectedPartRules = new bool[5];
             this._showPlanes = new bool[3];
             this._planes = new GameObject[3];
             this._createPlanes();
@@ -170,12 +178,16 @@ namespace NodeHelper
                 return;
             }
             this._updateMapping();
+            this._updateAttachRules();
             this._setupSelectedPart();
             this._processPlanes();
             foreach (var mapping in this._nodeMapping.Select(kv => new {node = kv.Key, go = kv.Value}))
             {
                 var localPos = this._selectedPart.transform.TransformPoint(mapping.node.position);
-                mapping.go.transform.position = localPos;
+                var goTrans = mapping.go.transform;
+                goTrans.position = localPos;
+                goTrans.localScale = GetGoScaleForNode(mapping.node);
+                goTrans.up = mapping.node.orientation;
                 if (this._selectedNode != null && mapping.node == this._selectedNode)
                 {
                     _updateGoColor(mapping.go, this._selectedNodeColor);
@@ -267,11 +279,15 @@ namespace NodeHelper
                 GUILayout.Space(spacing);
                 GUILayout.BeginVertical();
                 var cPos = this._selectedNode.position;
-                var posText = string.Format("({0:F5},{1:F5},{2:F5})", cPos.x, cPos.y, cPos.z);
+                var posText = string.Format("{0},{1},{2}", _formatNumberForOutput(cPos.x), _formatNumberForOutput(cPos.y), _formatNumberForOutput(cPos.z));
                 GUILayout.Label("Current Position:", expandWidth);
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(posText, expandWidth);
+                GUILayout.Label("(" + posText + ")", expandWidth);
                 GUILayout.EndHorizontal();
+                if (GUILayout.Button("copy to set pos.", expandWidth))
+                {
+                    this._targetPos = posText;
+                }
                 GUILayout.EndVertical();
                 GUILayout.Space(spacing);
                 GUILayout.BeginHorizontal();
@@ -296,6 +312,67 @@ namespace NodeHelper
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.EndVertical();
+                GUILayout.Space(spacing);
+
+                GUILayout.BeginVertical();
+                GUILayout.Label("curr. node size: " + this._selectedNode.size, expandWidth);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("reduce size", expandWidth))
+                {
+                    if (this._selectedNode.size > 0)
+                    {
+                        this._selectedNode.size -= 1;
+                    }
+                }
+                GUILayout.Space(spacing);
+                if (GUILayout.Button("increase size", expandWidth))
+                {
+                    if (this._selectedNode.size < int.MaxValue - 1)
+                    {
+                        this._selectedNode.size += 1;
+                    }
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+                GUILayout.Space(spacing);
+                GUILayout.BeginVertical();
+                var or = this._selectedNode.orientation;
+                var orientationString = _formatNumberForOutput(or.x) + "," + _formatNumberForOutput(or.y) + "," + _formatNumberForOutput(or.z);
+                GUILayout.Label("curr. node orientation: " + orientationString, expandWidth);
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("X", expandWidth))
+                {
+                    this._selectedNode.orientation = new Vector3(1f, 0f, 0f);
+                }
+                if (GUILayout.Button("Y", expandWidth))
+                {
+                    this._selectedNode.orientation = new Vector3(0f, 1f, 0f);
+                }
+                if (GUILayout.Button("Z", expandWidth))
+                {
+                    this._selectedNode.orientation = new Vector3(0f, 0f, 1f);
+                }
+                this._nodeOrientationCust = GUILayout.TextField(this._nodeOrientationCust, expandWidth);
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("p. up", expandWidth))
+                {
+                    this._selectedNode.orientation = this._selectedPart.transform.up;
+                }
+                if (GUILayout.Button("p. forward", expandWidth))
+                {
+                    this._selectedNode.orientation = this._selectedPart.transform.forward;
+                }
+                if (GUILayout.Button("p. right", expandWidth))
+                {
+                    this._selectedNode.orientation = this._selectedPart.transform.right;
+                }
+                if (GUILayout.Button("cust.", expandWidth))
+                {
+                    this._orientNodeToCust();
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
                 GUILayout.Space(bigSpacing);
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Delete node", expandWidth))
@@ -308,6 +385,23 @@ namespace NodeHelper
             }
             else
             {
+                GUILayout.Space(bigSpacing);
+                GUILayout.BeginVertical("box");
+                GUILayout.Label("Part Attach Rules: " + this._getSelPartAttRulesString());
+                var tempArr = new bool[5];
+                Array.Copy(this._selectedPartRules, tempArr, 5);
+                GUILayout.BeginHorizontal();
+                tempArr[0] = GUILayout.Toggle(tempArr[0], "stack", "Button", expandWidth);
+                tempArr[1] = GUILayout.Toggle(tempArr[1], "srfAttach", "Button", expandWidth);
+                tempArr[2] = GUILayout.Toggle(tempArr[2], "allowStack", "Button", expandWidth);
+                GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                tempArr[3] = GUILayout.Toggle(tempArr[3], "allowSrfAttch", "Button", expandWidth);
+                tempArr[4] = GUILayout.Toggle(tempArr[4], "allowCollision", "Button", expandWidth);
+                GUILayout.EndHorizontal();
+                this._processAttachRules(tempArr);
+                GUILayout.EndVertical();
+                GUILayout.Space(bigSpacing);
                 if (!this._showCreateMenu)
                 {
                     GUILayout.BeginVertical("box");
@@ -405,6 +499,7 @@ namespace NodeHelper
             {
                 this._selectedPart = null;
                 this._selectedNode = null;
+                this._selectedPartRules = new bool[5];
             }
         }
 
@@ -502,7 +597,12 @@ namespace NodeHelper
         {
             var precision = Mathf.Clamp(_floatPrecision(inputNumber), 1, 5);
             var formatString = "{0:F" + precision + "}";
-            return string.Format(formatString, inputNumber);
+            var trimmedString = string.Format(formatString, inputNumber).TrimEnd('0');
+            if (trimmedString[trimmedString.Length - 1] == '.' || trimmedString[trimmedString.Length - 1] == ',')
+            {
+                trimmedString = trimmedString + "0";
+            }
+            return trimmedString;
         }
 
         private string _getNodeName(AttachNode node)
@@ -512,6 +612,21 @@ namespace NodeHelper
                 return this._nodeNameMapping[node];
             }
             return "n.a.";
+        }
+
+        private string _getSelPartAttRulesString()
+        {
+            var sb = new StringBuilder(9);
+            for (var i = 0; i < 5; i++)
+            {
+                var val = this._selectedPartRules[i] ? 1 : 0;
+                sb.Append(val);
+                if (i < 4)
+                {
+                    sb.Append(",");
+                }
+            }
+            return sb.ToString();
         }
 
         private void _moveNode(MoveDirs moveDir, bool positive)
@@ -579,7 +694,7 @@ namespace NodeHelper
             sb.Append(_formatNumberForOutput(or.y));
             sb.Append(delim);
             sb.Append(_formatNumberForOutput(or.z));
-            if (node.size != 0)
+            if (node.size > 0)
             {
                 sb.Append(delim);
                 sb.Append(node.size);
@@ -592,6 +707,23 @@ namespace NodeHelper
             var delim = new[] {"(Clone"};
             var parts = messedupName.Split(delim, StringSplitOptions.None);
             return parts[0];
+        }
+
+        private void _orientNodeToCust()
+        {
+            if (this._selectedNode == null)
+            {
+                return;
+            }
+            try
+            {
+                var custOr = KSPUtil.ParseVector3(this._nodeOrientationCust);
+                this._selectedNode.orientation = custOr;
+            }
+            catch (Exception)
+            {
+                OSD.PostMessageUpperCenter("[NH] unable to set node orientation, please check vector format");
+            }
         }
 
         private void _parsePlaneRadius()
@@ -660,6 +792,36 @@ namespace NodeHelper
             finally
             {
                 this._printingActive = false;
+            }
+        }
+
+        private void _processAttachRules(bool[] tempArr)
+        {
+            if (this._selectedPart == null || this._selectedPart.attachRules == null)
+            {
+                return;
+            }
+            var arr = this._selectedPartRules;
+            var pr = this._selectedPart.attachRules;
+            if (arr[0] != tempArr[0])
+            {
+                pr.stack = !pr.stack;
+            }
+            if (arr[1] != tempArr[1])
+            {
+                pr.srfAttach = !pr.srfAttach;
+            }
+            if (arr[2] != tempArr[2])
+            {
+                pr.allowStack = !pr.allowStack;
+            }
+            if (arr[3] != tempArr[3])
+            {
+                pr.allowSrfAttach = !pr.allowSrfAttach;
+            }
+            if (arr[4] != tempArr[4])
+            {
+                pr.allowCollision = !pr.allowCollision;
             }
         }
 
@@ -770,6 +932,21 @@ namespace NodeHelper
             return nameDic;
         }
 
+        private void _updateAttachRules()
+        {
+            if (this._selectedPart == null || this._selectedPart.attachRules == null)
+            {
+                return;
+            }
+            var arr = this._selectedPartRules;
+            var pr = this._selectedPart.attachRules;
+            arr[0] = pr.stack;
+            arr[1] = pr.srfAttach;
+            arr[2] = pr.allowStack;
+            arr[3] = pr.allowSrfAttach;
+            arr[4] = pr.allowCollision;
+        }
+
         private static void _updateGoColor(GameObject go, Color color)
         {
             var mr = go.GetComponent<MeshRenderer>();
@@ -789,7 +966,7 @@ namespace NodeHelper
                     {
                         continue;
                     }
-                    var scale = ((Vector3.one*attachNode.radius)*(attachNode.size != 0 ? attachNode.size : 0.5f));
+                    var scale = GetGoScaleForNode(attachNode);
                     var go = Utilities.CreatePrimitive(PrimitiveType.Sphere, this._nodeColor, scale, true, false, false, shader: TransShader);
                     go.GetComponent<MeshRenderer>().material = this._nodeMaterial;
                     this._nodeMapping.Add(attachNode, go);
