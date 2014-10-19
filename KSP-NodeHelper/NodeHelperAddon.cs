@@ -735,7 +735,7 @@ namespace NodeHelper
                 pr = Mathf.Abs(pr);
             }
             this._planeRadius = pr;
-            this._planeRadiusString = _formatNumberForOutput(_stepWidth);
+            this._planeRadiusString = _formatNumberForOutput(pr);
         }
 
         private void _parseStepWidth()
@@ -747,7 +747,7 @@ namespace NodeHelper
                 psw = Mathf.Abs(sw);
             }
             this._stepWidth = psw;
-            this._stepWidthString = _formatNumberForOutput(_stepWidth);
+            this._stepWidthString = _formatNumberForOutput(psw);
         }
 
         private void _printNodeConfigForPart(bool simple = false)
