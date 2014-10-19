@@ -136,7 +136,7 @@ namespace NodeHelper
             this._nodeHelperButton = ToolbarManager.Instance.add("CIT_NodeHelper", "NodeHelperButton");
             this._nodeHelperButton.TexturePath = "CIT/NodeHelper/Textures/button_icon";
             this._nodeHelperButton.ToolTip = "NodeHelper";
-            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR);
+            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR, GameScenes.SPH);
             this._nodeHelperButton.OnClick += e => this._show = !this._show;
         }
 
@@ -490,6 +490,7 @@ namespace NodeHelper
             }
             this._nodeMapping.Clear();
             this._nodeNameMapping.Clear();
+            this._nodePosBackup.Clear();
             for (var i = 0; i < 3; i++)
             {
                 this._showPlanes[i] = false;
@@ -734,7 +735,7 @@ namespace NodeHelper
                 pr = Mathf.Abs(pr);
             }
             this._planeRadius = pr;
-            this._planeRadiusString = pr.ToString(CultureInfo.InvariantCulture);
+            this._planeRadiusString = _formatNumberForOutput(_stepWidth);
         }
 
         private void _parseStepWidth()
@@ -746,7 +747,7 @@ namespace NodeHelper
                 psw = Mathf.Abs(sw);
             }
             this._stepWidth = psw;
-            this._stepWidthString = psw.ToString(CultureInfo.InvariantCulture);
+            this._stepWidthString = _formatNumberForOutput(_stepWidth);
         }
 
         private void _printNodeConfigForPart(bool simple = false)
