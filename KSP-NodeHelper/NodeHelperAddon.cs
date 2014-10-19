@@ -84,7 +84,7 @@ namespace NodeHelper
         public void OnGUI()
         {
             const string inputLock = "CIT_NodeHelper_Lock";
-            if (HighLogic.LoadedScene != GameScenes.EDITOR)
+            if (HighLogic.LoadedScene != GameScenes.EDITOR && HighLogic.LoadedScene != GameScenes.SPH)
             {
                 if (this._inputLockSet)
                 {
