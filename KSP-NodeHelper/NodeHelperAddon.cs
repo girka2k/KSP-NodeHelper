@@ -978,7 +978,10 @@ namespace NodeHelper
                     go.GetComponent<MeshRenderer>().material = this._nodeMaterial;
                     this._nodeMapping.Add(attachNode, go);
                     this._nodeNameMapping.Add(attachNode, attachNode.id);
-                    this._nodePosBackup.Add(attachNode, attachNode.position);
+                    if (!this._nodePosBackup.ContainsKey(attachNode))
+                    {
+                        this._nodePosBackup.Add(attachNode, attachNode.position);
+                    }
                 }
             }
         }
