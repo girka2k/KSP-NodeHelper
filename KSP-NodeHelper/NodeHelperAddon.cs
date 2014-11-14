@@ -48,6 +48,7 @@ namespace NodeHelper
         private string _stepWidthString = "0.1";
         private string _targetPos = ZeroVector;
         private Rect _windowPos = new Rect(400, 100, 160, 40);
+        private GameObject _orientationPointer;
 
         private static Vector3 GetGoScaleForNode(AttachNode attachNode)
         {
@@ -84,7 +85,7 @@ namespace NodeHelper
         public void OnGUI()
         {
             const string inputLock = "CIT_NodeHelper_Lock";
-            if (HighLogic.LoadedScene != GameScenes.EDITOR)
+            if (HighLogic.LoadedScene != GameScenes.EDITOR && HighLogic.LoadedScene != GameScenes.SPH)
             {
                 if (this._inputLockSet)
                 {
@@ -125,6 +126,7 @@ namespace NodeHelper
             this._showPlanes = new bool[3];
             this._planes = new GameObject[3];
             this._createPlanes();
+            _orientationPointer = Utilities.CreatePrimitive(PrimitiveType.Cylinder, _planeColor, new Vector3(0.0625f, 0.25f, 0.0625f), false, false, false, name: "node orientation helper", shader: TransShader);
             var vesselOverlays = (EditorVesselOverlays) FindObjectOfType(typeof(EditorVesselOverlays));
             this._nodeMaterial = vesselOverlays.CoMmarker.gameObject.renderer.material;
             this._nodeMaterial.shader = Shader.Find(TransShader);
@@ -136,7 +138,7 @@ namespace NodeHelper
             this._nodeHelperButton = ToolbarManager.Instance.add("CIT_NodeHelper", "NodeHelperButton");
             this._nodeHelperButton.TexturePath = "CIT/NodeHelper/Textures/button_icon";
             this._nodeHelperButton.ToolTip = "NodeHelper";
-            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR);
+            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR, GameScenes.SPH);
             this._nodeHelperButton.OnClick += e => this._show = !this._show;
         }
 
@@ -199,6 +201,8 @@ namespace NodeHelper
             }
         }
 
+        private bool _showOrientationPointer;
+
         protected void WindowGui(int windowID)
         {
             if (this._axisLockCounter > 0)
@@ -212,7 +216,7 @@ namespace NodeHelper
             GUILayout.BeginVertical("box");
             if (this._selectedPart == null)
             {
-                GUILayout.Label("Please select a part.", expandWidth);
+                GUILayout.Label("Please select (right-click) a part.", expandWidth);
                 GUILayout.EndVertical();
                 GUI.DragWindow();
                 return;
@@ -372,6 +376,7 @@ namespace NodeHelper
                     this._orientNodeToCust();
                 }
                 GUILayout.EndHorizontal();
+                _showOrientationPointer = GUILayout.Toggle(_showOrientationPointer, "Show Orientation Pointer", "Button", expandWidth);
                 GUILayout.EndVertical();
                 GUILayout.Space(bigSpacing);
                 GUILayout.BeginHorizontal();
@@ -484,12 +489,14 @@ namespace NodeHelper
             {
                 return;
             }
+            this._orientationPointer.SetActive(false);
             foreach (var kv in this._nodeMapping)
             {
                 Destroy(kv.Value);
             }
             this._nodeMapping.Clear();
             this._nodeNameMapping.Clear();
+            //this._nodePosBackup.Clear();
             for (var i = 0; i < 3; i++)
             {
                 this._showPlanes[i] = false;
@@ -734,7 +741,7 @@ namespace NodeHelper
                 pr = Mathf.Abs(pr);
             }
             this._planeRadius = pr;
-            this._planeRadiusString = pr.ToString(CultureInfo.InvariantCulture);
+            this._planeRadiusString = _formatNumberForOutput(pr);
         }
 
         private void _parseStepWidth()
@@ -746,7 +753,7 @@ namespace NodeHelper
                 psw = Mathf.Abs(sw);
             }
             this._stepWidth = psw;
-            this._stepWidthString = psw.ToString(CultureInfo.InvariantCulture);
+            this._stepWidthString = _formatNumberForOutput(psw);
         }
 
         private void _printNodeConfigForPart(bool simple = false)
@@ -840,6 +847,11 @@ namespace NodeHelper
             {
                 center = this._selectedPart.transform.TransformPoint(this._selectedNode.position);
                 up = this._selectedNode.orientation;
+                _positionOrientationPointer(center, up);
+            }
+            else
+            {
+                this._orientationPointer.SetActive(false);
             }
             for (var i = 0; i < 3; i++)
             {
@@ -867,6 +879,21 @@ namespace NodeHelper
                 }
                 pT.Rotate(rotVec);
                 plane.SetActive(true);
+            }
+        }
+
+        private void _positionOrientationPointer(Vector3 center, Vector3 up)
+        {
+            this._orientationPointer.transform.up = up;
+            this._orientationPointer.transform.position = center;
+            this._orientationPointer.transform.Translate(0f, 0.25f, 0f);
+            if (_showOrientationPointer)
+            {
+                this._orientationPointer.SetActive(true);
+            }
+            else
+            {
+                this._orientationPointer.SetActive(false);
             }
         }
 
