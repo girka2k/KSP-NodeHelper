@@ -85,7 +85,7 @@ namespace NodeHelper
         public void OnGUI()
         {
             const string inputLock = "CIT_NodeHelper_Lock";
-            if (HighLogic.LoadedScene != GameScenes.EDITOR && HighLogic.LoadedScene != GameScenes.SPH)
+            if (HighLogic.LoadedScene != GameScenes.EDITOR)
             {
                 if (this._inputLockSet)
                 {
@@ -138,7 +138,7 @@ namespace NodeHelper
             this._nodeHelperButton = ToolbarManager.Instance.add("CIT_NodeHelper", "NodeHelperButton");
             this._nodeHelperButton.TexturePath = "CIT/NodeHelper/Textures/button_icon";
             this._nodeHelperButton.ToolTip = "NodeHelper";
-            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR, GameScenes.SPH);
+            this._nodeHelperButton.Visibility = new GameScenesVisibility(GameScenes.EDITOR);
             this._nodeHelperButton.OnClick += e => this._show = !this._show;
         }
 
@@ -164,7 +164,7 @@ namespace NodeHelper
                 {
                     this._nodePosBackup.Remove(attachNode);
                 }
-                if (el.PartSelected != null)
+                if (EditorLogic.SelectedPart != null)
                 {
                     this._clearMapping();
                     this._cleanSelectedPartSetup();
@@ -940,7 +940,7 @@ namespace NodeHelper
                 return;
             }
             this._selectedPart.SetHighlightColor(Color.blue);
-            this._selectedPart.SetHighlight(true);
+            this._selectedPart.SetHighlight(true,false);
         }
 
         private static string _stripUrl(string url, string stripName)
